@@ -1,0 +1,77 @@
+<%
+   user = OodSupport::User.new
+   services_node = Resolv.getaddress("servicesnode")
+
+   # The session's one emulated GPU, chosen on the launch form. Only the cards
+   # this app offers are accepted; anything else gets the first of them.
+   cards = %w[l4 a100_40 a100 h100 pro_6000]
+   card = cards.include?(gpu_card.to_s.strip) ? gpu_card.to_s.strip : cards.first
+   vram = "200MiB"
+   fleet = "#{card}:#{vram}"
+%>
+---
+batch_connect:
+  template: "basic"
+  conn_params:
+    - csrf_token
+script:
+  wall_time: "<%= wall_time.to_i * 3600 %>"
+  native:
+    container:
+      name: "test3-rstudio"
+      # This tag is the image a session actually runs, and it must match the git
+      # tag this file is released under (CI checks that on tag builds). The
+      # training-environment config's `k8s_container` does not control it; that
+      # value only tells the pod pre-puller which image to cache.
+      image: "ghcr.io/reannz-training-environment/training-environment-rstudio-test3-app:v0.1.0"
+      command: ["/bin/bash","-l","<%= staged_root %>/job_script_content.sh"]
+      restart_policy: 'OnFailure'
+      env:
+        TZ: "Pacific/Auckland"
+        # the session's GPUs, as name:memory entries; read by gpuemud at
+        # startup and by sbatch to decide whether a requested card exists
+        GPUEMU_FLEET: "<%= fleet %>"
+      port: "8080"
+      cpu: "<%= cpu %>"
+      memory: "<%= memory %>Gi"
+    mounts:
+      - type: nfs
+        name: home
+        host: <%= services_node %>
+        path: /srv/homes
+        destination_path: /home/shared
+      - type: host
+        name: nslcd-socket
+        host_type: Socket
+        path: /var/run/nslcd/socket
+        destination_path: /var/run/nslcd/socket
+      - type: host
+        name: nsswitch-conf
+        host_type: File
+        path: /etc/nsswitch.conf
+        destination_path: /etc/nsswitch.conf
+    configmap:
+      files:
+        - filename: "logging.conf"
+          data: |
+            [*]
+            log-level=debug
+            logger-type=file
+            log-dir=<%= staged_root %>/logs
+          mount_path: '/etc/rstudio'
+        - filename: "database.conf"
+          data: |
+            directory=/tmp/lib/rstudio-server
+          mount_path: '/etc/rstudio/database'
+        - filename: 'k8_helper'
+          data: |
+            #!/usr/bin/env bash
+
+            set -x
+
+            KEY=$1
+            VALUE=$(echo -n $2 | base64)
+            CFG="$(hostname)-secret"
+
+            kubectl get secret ${CFG} -o json | jq --arg key $KEY --arg value $VALUE '.data[$key] = $value'  | kubectl apply -f -
+          mount_path: '/opt/open_ondemand/helpers'

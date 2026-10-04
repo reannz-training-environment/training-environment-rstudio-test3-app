@@ -1,0 +1,36 @@
+---
+cluster: "my-k8s-cluster"
+
+form:
+  - cpu
+  - memory
+  - gpu_card
+  - wall_time
+
+attributes:
+  cpu: 4
+  memory: 8
+
+  # The session's one emulated GPU, chosen here from the cards the app offers.
+  # No physical GPU is involved: the card changes only the name, memory size,
+  # clocks and power the GPU tools report. A job asking Slurm for any other
+  # card is refused, the same way the cluster refuses a card a partition lacks.
+  gpu_card:
+    widget: select
+    label: "GPU"
+    help: |
+      The emulated NVIDIA GPU this session has. A batch job asks for it with
+      `--gpus-per-node=<name>:1`, the name in brackets below.
+    options:
+      - ["NVIDIA L4, 24 GB (l4)", "l4"]
+      - ["NVIDIA A100, 40 GB (a100_40)", "a100_40"]
+      - ["NVIDIA A100, 80 GB (a100)", "a100"]
+      - ["NVIDIA H100 NVL, 94 GB (h100)", "h100"]
+      - ["NVIDIA RTX PRO 6000, 96 GB (pro_6000)", "pro_6000"]
+    value: "l4"
+  wall_time:
+    widget: number_field
+    label: "Hours"
+    min: 4
+    max: 12
+    value: 8

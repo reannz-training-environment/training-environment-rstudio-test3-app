@@ -1,0 +1,8 @@
+# Conda packages requested in the app spec, installed into /opt/conda/envs/apps
+name: apps
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- samtools
+- snakemake

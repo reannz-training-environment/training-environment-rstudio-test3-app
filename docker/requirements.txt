@@ -1,0 +1,9 @@
+# Python packages requested in the app spec
+numpy
+pandas
+matplotlib
+scipy
+scikit-learn
+seaborn
+plotly
+ipywidgets
